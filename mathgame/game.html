@@ -1,0 +1,391 @@
+
+<html>
+<head>
+<style>
+#hero {
+  width: 35px;
+  height: 62px;
+  background-image: url(images/hero.png);
+  position: absolute;
+}
+#blust {
+  width: 157px;
+  height: 90px;
+  background-image: url(images/blust.png);
+  position: absolute;
+}
+#background {
+  background: #000000;
+  width: 840px;
+  height: 600px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+}
+#laser {
+  width: 10px;
+  height: 38px;
+  position: absolute;
+  background-image: url(images/bulet.png);
+}
+.enemy {
+  width: 50px;
+  height: 69px;
+  color: blue;
+  vertical-align: middle;
+  display: table-cell;
+  font-weight: bold;
+  font-size:25px;
+  position: absolute;
+  -moz-border-radius: 25px / 25px;
+	-webkit-border-radius: 25px / 25px;
+	border-radius: 25px / 25px;
+	text-align: center;
+	display: table-cell;
+  background-image: url(images/bomb.png);
+}
+#score {
+  color: #ffffff;
+  font-size: 18pt;
+  position: absolute;
+  left: 20px;
+  top: 20px;
+}
+
+#mathvalue {
+  color: #ffffff;
+  font-size: 18pt;
+  position: absolute;
+  left:700px;
+  top: 20px;
+}
+#gameover {
+  color: #ff0000;
+  font-size: 20px;
+  position: absolute;
+  left: 360px;
+  top: 200px;
+  visibility: hidden;
+  z-index:500;
+}
+#instructions {
+  color: white;
+  background: grey;
+  font-size: 18pt;
+  position: absolute;
+  left:840px;
+  top: 0px;
+  width:300px;
+  height:600px;
+}
+.button{
+  width:100px;
+}
+#backmenu{
+  width:200px;
+}
+</style>
+</head>
+<body>
+  <audio autoplay loop>
+  <source src="sounds/Game-2_Looping.mp3" type="audio/mpeg">
+  Your browser does not support the audio element.
+</audio>
+  <audio id="firesound" >
+  <source src="sounds/shoot.mp3" type="audio/mpeg">
+  Your browser does not support the audio element.
+</audio>
+ <audio id="rocketcrash" >
+  <source src="sounds/rocket_crash.mp3" type="audio/mpeg">
+  Your browser does not support the audio element.
+</audio>
+ <audio id="defuse" >
+  <source src="sounds/defuse.mp3" type="audio/mpeg">
+  Your browser does not support the audio element.
+</audio>
+ <audio id="defuse1" >
+  <source src="sounds/defuse1.mp3" type="audio/mpeg">
+  Your browser does not support the audio element.
+</audio>
+
+<div id="background"></div>
+<div id="hero"></div>
+<div id="blust"></div>
+<div id="laser"></div>
+<div id="score"></div>
+<div id="mathvalue"></div>
+<div id="gameover">GAME OVER</div>
+<div id="instructions">
+  <H3>Instructions</H3>
+  <ul>
+    <li>Letf and Right arrow key used to move the fighter</li>
+    <li>Space key used to throw the bullet</li>
+    <li>Any bomb blust without math value will increase scroe +10</li>
+    <li>Math value bomb blust score +50</li>
+    <li>If any bomb hit the ship then game over</li>
+    <br>
+    
+    <br><br>
+    <button class="button" onClick="gamePause()">Pause</button><button class="button" onClick="gameResume()">Resume</button>
+    <br><br>
+    <button class="button" id="backmenu" onClick="backMenu()">Back To Main Menu</button>
+
+  </ul>
+</div>
+<script>
+
+var LEFT_KEY = 37;
+var UP_KEY = 38;
+var RIGHT_KEY = 39;
+var DOWN_KEY = 40;
+var SPACE_KEY = 32;
+var HERO_MOVEMENT = 10;
+
+var lastLoopRun = 0;
+var score = 0;
+var iterations = 0;
+var isGameOver=false;
+
+var mathvalue1=getRandom(5);
+var mathvalue2=getRandom(4);
+var isGameRunning=false;
+
+var controller = new Object();
+var enemies = new Array();
+
+function createSprite(element, x, y, w, h) {
+  var result = new Object();
+  result.element = element;
+  result.x = x;
+  result.y = y;
+  result.w = w;
+  result.h = h;
+  return result;
+}
+function fireAudio(){
+ // shootAudio.currentTime=0;
+shootAudio.load();
+shootAudio.play();
+}
+
+
+function gameResume(){
+  isGameRunning=true;
+}
+function gamePause(){
+  isGameRunning=false;
+}
+function toggleKey(keyCode, isPressed) {
+  if (keyCode == LEFT_KEY) {
+    controller.left = isPressed;
+  }
+  if (keyCode == RIGHT_KEY) {
+    controller.right = isPressed;
+  }
+  if (keyCode == UP_KEY) {
+    controller.up = isPressed;
+  }
+  if (keyCode == DOWN_KEY) {
+    controller.down = isPressed;
+  }
+  if (keyCode == SPACE_KEY) {
+    
+    controller.space = isPressed;
+  }  
+}
+
+function intersects(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function ensureBounds(sprite, ignoreY) {
+  if (sprite.x < 20) {
+    sprite.x = 20;
+  }
+  if (!ignoreY && sprite.y < 20) {
+    sprite.y = 20;
+  }
+  if (sprite.x + sprite.w > 820) {
+    sprite.x = 820 - sprite.w;
+  }
+  if (!ignoreY && sprite.y + sprite.h > 580) {
+    sprite.y = 580 - sprite.h;
+  }
+}
+
+function setPosition(sprite) {
+  var e = document.getElementById(sprite.element);
+  e.style.left = sprite.x + 'px';
+  e.style.top = sprite.y + 'px';
+}
+
+function handleControls() {
+  if (controller.up) {
+    hero.y -= HERO_MOVEMENT;
+  }
+  if (controller.down) {
+    hero.y += HERO_MOVEMENT;
+  }
+  if (controller.left) {
+    hero.x -= HERO_MOVEMENT;
+  }
+  if (controller.right) {
+    hero.x += HERO_MOVEMENT;
+  }
+  if (controller.space && laser.y <= -120) {
+    laser.x = hero.x + 13;
+    laser.y = hero.y - laser.h;
+    fireAudio();
+  }
+  
+  ensureBounds(hero);
+}
+
+function checkCollisions() {
+  for (var i = 0; i < enemies.length; i++) {
+    if (intersects(laser, enemies[i])) {
+      var element = document.getElementById(enemies[i].element);
+      element.style.visibility = 'hidden';
+      element.parentNode.removeChild(element);
+      enemies.splice(i, 1);
+      i--;
+      laser.y = -laser.h;
+      console.log(element.innerHTML.substring(4).trim())
+      if(element.innerHTML.substring(4).trim()==(mathvalue1+mathvalue2)){
+        defuse1Audion.load();
+        defuse1Audion.play();
+        score += 50;
+        mathvalue2=getRandom(5);
+        mathvalue1=getRandom(4);
+
+      }else{
+        defuseAudion.load();
+        defuseAudion.play();
+        score += 10;
+      }
+      
+    } else if (intersects(hero, enemies[i])) {
+      var enimy = document.getElementById(enemies[i].element);
+      console.log(enimy.innerHTML)
+      gameOver();
+    } else if (enemies[i].y + enemies[i].h >= 600) {
+      var element = document.getElementById(enemies[i].element);
+      element.style.visibility = 'hidden';
+      element.parentNode.removeChild(element);
+      enemies.splice(i, 1);
+      i--;
+    }
+  }
+}
+function backMenu(){
+  window.location.href="index.html";
+}
+function gameOver() {
+  rocketCrashAudio.load();
+  rocketCrashAudio.play();
+  var elementBlust = document.getElementById(blust.element);
+  var element = document.getElementById(hero.element);
+  element.style.visibility = 'hidden';
+  blust.x=hero.x-20;
+  blust.y=hero.y-20;
+  elementBlust.style.display = 'block';
+  element = document.getElementById('gameover');
+  element.style.visibility = 'visible';
+  isGameOver=true;
+}
+
+function showSprites() {
+  setPosition(hero);
+  setPosition(laser);
+  setPosition(blust);
+  for (var i = 0; i < enemies.length; i++) {
+    setPosition(enemies[i]);
+  }
+  var scoreElement = document.getElementById('score');
+  var mathElement = document.getElementById('mathvalue');
+  mathElement.innerHTML=mathvalue1+" + "+mathvalue2+" = ?";
+  scoreElement.innerHTML = 'SCORE: ' + score;
+}
+
+function updatePositions() {
+  for (var i = 0; i < enemies.length; i++) {
+    enemies[i].y += 4;
+    enemies[i].x += getRandom(7) - 3;
+    ensureBounds(enemies[i], true);
+  }
+  laser.y -= 12;
+}
+
+function addEnemy() {
+  var interval = 50;
+  if (iterations > 1500) {
+    interval = 5;
+  } else if (iterations > 1000) {
+    interval = 15;
+  } else if (iterations > 500) {
+    interval = 25;
+  }
+  
+  if (getRandom(interval) == 0) {
+    var elementName = 'enemy' + getRandom(10000000);
+    var enemy = createSprite(elementName, getRandom(800), -40, 35, 35);
+    
+    var element = document.createElement('div');
+    element.id = enemy.element;
+    element.className = 'enemy'; 
+    document.children[0].appendChild(element);
+    element.innerHTML='<br>'+getRandom(9);
+    enemies[enemies.length] = enemy;
+  }
+}
+
+function getRandom(maxSize) {
+  return parseInt(Math.random() * maxSize);
+}
+
+function loop() {
+  if (new Date().getTime() - lastLoopRun > 40   && !isGameOver && isGameRunning) {
+    updatePositions();
+    handleControls();
+    checkCollisions();
+    
+    addEnemy();
+    
+    showSprites();
+    
+    lastLoopRun = new Date().getTime();
+    iterations++;
+  }
+  setTimeout('loop();', 2);
+}
+
+document.onkeydown = function(evt) {
+  toggleKey(evt.keyCode, true);
+};
+
+document.onkeyup = function(evt) {
+  toggleKey(evt.keyCode, false);
+
+  
+};
+
+mathvalue1=getRandom(5);
+mathvalue2=getRandom(4);
+var hero = createSprite('hero', 420, 580, 35, 62);
+var laser = createSprite('laser', 0, -120, 10, 38);
+var blust =  createSprite('blust', 380, 500, 157, 90);
+var elementBlust = document.getElementById(blust.element);
+var elementhero = document.getElementById(hero.element);
+var elementlaser = document.getElementById(laser.element);
+var shootAudio = document.getElementById("firesound");
+var rocketCrashAudio = document.getElementById("rocketcrash");
+var defuseAudion = document.getElementById("defuse");
+var defuse1Audion = document.getElementById("defuse1");
+elementBlust.style.display = 'none';
+elementhero.style.display = 'block';
+elementlaser.style.display = 'block';
+isGameRunning=true;
+loop();
+</script>
+</body>
+</html>
